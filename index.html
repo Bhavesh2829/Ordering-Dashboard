@@ -1553,8 +1553,10 @@ function fatal(t,m){$('#app').innerHTML=`<div class="card" style="max-width:560p
 
 /* ================= boot ================= */
 let KEY='';try{KEY=localStorage.getItem('wz_key')||''}catch(_){}
+const qk=new URLSearchParams(location.search).get('key');
 const km=(location.hash||'').match(/^#key=(.+)$/);
-if(km){KEY=decodeURIComponent(km[1]);try{localStorage.setItem('wz_key',KEY)}catch(_){}history.replaceState(null,'',location.pathname+'#overview')}
+if(qk){KEY=qk;try{localStorage.setItem('wz_key',KEY)}catch(_){}}
+else if(km){KEY=decodeURIComponent(km[1]);try{localStorage.setItem('wz_key',KEY)}catch(_){}history.replaceState(null,'',location.pathname+'?key='+encodeURIComponent(KEY)+'#overview')}
 load();chrome();
 if(!KEY)fatal('Private link needed','Open your dashboard link that ends with #key=YOUR-SECRET.');
 else if(!window.supabase||SUPABASE_ANON_KEY.startsWith('PASTE'))fatal('Setup needed','Add your Supabase anon key in index.html (SUPABASE_ANON_KEY).');
