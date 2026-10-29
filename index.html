@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --cream:#f3f0e7; --ink:#0e1a14; --muted:#62746a; --forest:#0f4a33; --green:#1f8a54;
@@ -625,7 +626,7 @@ button, input, select, textarea { max-width:100%; }
 (()=>{'use strict';
 /* ================= helpers ================= */
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
-const uid=()=>Math.random().toString(36).slice(2,9);
+const uid=()=>crypto.randomUUID();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad=n=>String(n).padStart(2,'0');
 const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
@@ -645,7 +646,7 @@ const trim=s=>s.includes('.')?s.replace(/\.?0+$/,''):s;
 const compact=n=>{const a=Math.abs(n),s=n<0?'−':'';if(a>=1e5)return s+'₹'+trim((a/1e5).toFixed(2))+'L';if(a>=1e3)return s+'₹'+trim((a/1e3).toFixed(1))+'k';return s+'₹'+Math.round(a)};
 const sum=(a,k)=>a.reduce((t,x)=>t+(+x[k]||0),0);
 // Backend integration contract. Keep API_BASE_URL empty until the server is deployed.
-const API_BASE_URL = '';
+const API_BASE_URL = 'master';
 async function apiRequest(path, options = {}) {
   if (!API_BASE_URL) throw new Error('Backend API is not configured. Set API_BASE_URL after deploying the API.');
   const response = await fetch(`${API_BASE_URL.replace(/\/$/, '')}${path}`, {
@@ -728,7 +729,7 @@ function load(){
 }
 // Persistence intentionally disabled until authenticated backend endpoints are connected.
 // Replace save() calls with the API adapter described in BACKEND_INTEGRATION_PROMPT.md.
-function save(){ return; }
+function save(){ return syncAll(); }
 
 /* ================= computed ================= */
 const monthOf=s=>s.slice(0,7);
@@ -1302,7 +1303,7 @@ function showOnboardingDetails(id) {
 
         <div class="onb-detail-footer">
           <span class="hint">
-            Backend connection pending
+            Live from your database
           </span>
           <button
             type="button"
@@ -1366,7 +1367,7 @@ function render(animate=false,opts={}){
   if(keep){const el=document.getElementById(keep.id);if(el){el.focus();try{el.setSelectionRange(keep.s,keep.e)}catch{}}}
   animate?window.scrollTo({top:0}):window.scrollTo({top:sy});
 }
-function go(view){S.ui.view=view;history.replaceState(null,'','#'+view);render(true)}
+function go(view){S.ui.view=view;history.replaceState(null,'','#'+view);render(true);if(view==='onboarding'&&DB)loadOnb().then(()=>{if(S.ui.view==='onboarding')render()}).catch(()=>toast('Could not refresh applications'))}
 
 /* ================= mutations ================= */
 function moveDeal(id,stage){const d=byId(S.deals,id);if(!d||d.stage===stage)return;const was=d.stage;d.stage=stage;
@@ -1395,7 +1396,7 @@ function mEvent(date){modal({title:'Add reminder',sub:'A meeting, demo or follow
   body:`<div class="grid2">${fld('Title','title',{req:1,ph:'Demo call with a new restaurant',cls:'span2'})}${fld('Date','date',{type:'date',value:date||todayISO(),cls:'span2'})}${fld('Starts','start',{type:'time',value:'11:00'})}${fld('Ends','end',{type:'time',value:'11:30'})}${fld('Client (optional)','client',{opts:clientOpts(),cls:'span2'})}</div>`,
   onSubmit(d){S.events.push({id:uid(),title:d.title.trim(),date:d.date,start:d.start,end:d.end,client:d.client});S.ui.calDay=d.date;S.ui.calMonth=d.date.slice(0,7);save();render();toast('Reminder saved')}})}
 function mTargets(){modal({title:'Targets and settings',sub:'These drive the goal ring and spending limit.',submit:'Save targets',
-  body:`<div class="grid2">${fld('Your name','name',{value:S.settings.name,req:1,cls:'span2'})}${fld('Monthly earning goal (₹)','goal',{type:'number',value:S.settings.goal,min:1,req:1})}${fld('Monthly spending limit (₹)','limit',{type:'number',value:S.settings.spendLimit,min:1,req:1})}</div><p class="hint mt-4">Backend persistence is not connected. Configure the API endpoints before using this dashboard with production records.</p>`,
+  body:`<div class="grid2">${fld('Your name','name',{value:S.settings.name,req:1,cls:'span2'})}${fld('Monthly earning goal (₹)','goal',{type:'number',value:S.settings.goal,min:1,req:1})}${fld('Monthly spending limit (₹)','limit',{type:'number',value:S.settings.spendLimit,min:1,req:1})}</div><p class="hint mt-4">Targets are saved to your database.</p>`,
   onSubmit(d){S.settings.name=d.name.trim()||'there';S.settings.goal=+d.goal;S.settings.spendLimit=+d.limit;save();chrome();render();toast('Targets saved')}})}
 function mBell(){const a=alerts();modal({title:'Reminders',sub:a.length?`${a.length} things need your attention.`:'You are all caught up.',submit:null,body:a.map(x=>`<button type="button" class="noti" data-act="goto" data-view="${x.view}"><span class="kpi-i" style="${x.late?'background:#fde3dc;color:#a23a22':''}">${ic(x.icon,18)}</span><span><b style="font-size:14px">${esc(x.title)}</b><br><span class="hint">${x.meta}</span></span></button>`).join('')||empty('Nothing due today.')})}
 function mSearch(){modal({title:'Search',sub:'Clients, deals, tasks and entries.',submit:null,wide:true,body:`<input id="pq" class="in mb-3" placeholder="Start typing a name" autocomplete="off"><div id="pr"></div>`,
@@ -1408,7 +1409,7 @@ function mSearch(){modal({title:'Search',sub:'Clients, deals, tasks and entries.
     $('#pq',f).addEventListener('input',run);f.addEventListener('submit',e=>e.preventDefault());run()}})}
 
 function exportCSV(){const rows=[['Date','Type','Title','Category','Client','Amount (INR)'],...S.tx.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(t=>[t.date,TYPE[t.type].l,t.title,t.category,clientName(t.clientId),t.amount])];
-  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/^[=+\-@]/,"'$&").replace(/"/g,'""')}"`).join(',')).join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`webtizo-report-${todayISO()}.csv`;document.body.appendChild(a);a.click();a.remove();toast('Report downloaded')}
 
 /* ================= events ================= */
@@ -1471,8 +1472,96 @@ document.addEventListener('drop',e=>{const z=e.target.closest('[data-drop]');if(
 window.addEventListener('resize',moveInk);
 window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(VIEWS[h]&&h!==S.ui.view){S.ui.view=h;render(true)}});
 
+/* ================= Supabase data layer ================= */
+const SUPABASE_URL='https://gzqbxtopgvsulhfvrjqk.supabase.co';
+const SUPABASE_ANON_KEY='PASTE_YOUR_SUPABASE_ANON_KEY';
+let DB=null,SNAP={},chain=Promise.resolve();
+const nz=v=>(v===''||v===undefined)?null:v;
+const MAP={
+ clients:{t:'clients',
+  to:c=>({id:c.id,owner_name:c.name,business_name:c.biz,phone:c.phone||null,email:c.email||null,city:c.city||null,plan:c.plan,table_count:+c.tables||0,status:c.status,monthly_fee:+c.fee||0,is_favorite:!!c.star,last_contacted_at:nz(c.last)}),
+  from:r=>({id:r.id,name:r.owner_name,biz:r.business_name,phone:r.phone||'',email:r.email||'',city:r.city||'',plan:r.plan,tables:r.table_count,status:r.status,fee:Number(r.monthly_fee),star:r.is_favorite,last:r.last_contacted_at||'',notes:[]})},
+ deals:{t:'deals',
+  to:d=>({id:d.id,title:d.title,lead_business_name:d.client||null,value:+d.value||0,stage:d.stage,expected_close_date:nz(d.closes),closed_at:nz(d.closed)}),
+  from:r=>({id:r.id,title:r.title,client:r.lead_business_name||'',value:Number(r.value),stage:r.stage,closes:r.expected_close_date||'',closed:r.closed_at||''})},
+ tx:{t:'transactions',
+  to:t=>({id:t.id,type:t.type,title:t.title,amount:+t.amount||0,transaction_date:t.date,category:nz(t.category),client_id:nz(t.clientId),deal_id:nz(t.dealId)}),
+  from:r=>({id:r.id,type:r.type,title:r.title,amount:Number(r.amount),date:r.transaction_date,category:r.category||'',clientId:r.client_id||'',dealId:r.deal_id||undefined})},
+ tasks:{t:'tasks',
+  to:t=>({id:t.id,title:t.title,status:t.status,priority:t.prio,due_date:nz(t.due),client_id:nz(t.client)}),
+  from:r=>({id:r.id,title:r.title,status:r.status,prio:r.priority,due:r.due_date||'',client:r.client_id||''})},
+ events:{t:'events',
+  to:e=>({id:e.id,title:e.title,event_date:e.date,start_time:nz(e.start),end_time:nz(e.end),client_id:nz(e.client)}),
+  from:r=>({id:r.id,title:r.title,date:r.event_date,start:(r.start_time||'').slice(0,5),end:(r.end_time||'').slice(0,5),client:r.client_id||''})}
+};
+const TABLE={clients:'clients',deals:'deals',tx:'transactions',tasks:'tasks',events:'events',notes:'client_notes',settings:'settings'};
+const ORDER=['clients','deals','tx','tasks','events','notes','settings'];
+function rowsNow(){
+  const o={};
+  Object.keys(MAP).forEach(k=>o[k]=S[k].map(MAP[k].to));
+  o.notes=S.clients.flatMap(c=>(c.notes||[]).map(n=>({id:n.id,client_id:c.id,text:n.text,tone:n.tone||'sun',created_at:n.date})));
+  o.settings=[{id:1,display_name:S.settings.name||null,monthly_income_goal:+S.settings.goal||0,monthly_spending_limit:+S.settings.spendLimit||0}];
+  return o;
+}
+const toSnap=n=>Object.fromEntries(ORDER.map(k=>[k,new Map(n[k].map(r=>[r.id,r]))]));
+function syncAll(){
+  chain=chain.then(doSync).catch(async e=>{console.error(e);toast('Could not save. Reloading your saved data');try{await loadAll();render()}catch(_){}});
+  return chain;
+}
+async function doSync(){
+  if(!DB)return;
+  const now=rowsNow(),cur=toSnap(now);
+  for(const k of ORDER){
+    const changed=now[k].filter(r=>JSON.stringify(r)!==JSON.stringify((SNAP[k]||new Map()).get(r.id)));
+    if(changed.length){const {error}=await DB.from(TABLE[k]).upsert(changed);if(error)throw error}
+  }
+  for(const k of [...ORDER].reverse()){
+    const gone=[...(SNAP[k]||new Map()).keys()].filter(id=>!cur[k].has(id));
+    if(!gone.length)continue;
+    const q=k==='clients'?DB.from('clients').update({deleted_at:new Date().toISOString()}):DB.from(TABLE[k]).delete();
+    const {error}=await q.in('id',gone);if(error)throw error;
+  }
+  SNAP=cur;
+}
+async function loadOnb(){
+  const r=await DB.from('restaurant_onboarding').select('*').order('created_at',{ascending:false}).limit(500);
+  if(r.error)throw r.error;
+  ONB_APPLICATIONS=r.data.map(x=>({...x,status:(!x.status||x.status==='new')?'pending':x.status,restaurant_name:x.restaurant_name||'',owner_name:x.owner_name||'',city:x.city||'',reference_id:x.reference_id||''}));
+}
+async function loadAll(){
+  const ok=r=>{if(r.error)throw r.error;return r.data};
+  const [cl,nt,dl,tx,tk,ev,st]=(await Promise.all([
+    DB.from('clients').select('*').is('deleted_at',null).order('created_at',{ascending:false}),
+    DB.from('client_notes').select('*').order('created_at',{ascending:false}),
+    DB.from('deals').select('*').order('created_at',{ascending:false}),
+    DB.from('transactions').select('*').order('created_at',{ascending:false}),
+    DB.from('tasks').select('*').order('created_at',{ascending:false}),
+    DB.from('events').select('*').order('event_date'),
+    DB.from('settings').select('*').eq('id',1)
+  ])).map(ok);
+  if(!st.length)throw new Error('Access key not accepted. Open your private link again.');
+  S.clients=cl.map(MAP.clients.from);
+  const byC=new Map(S.clients.map(c=>[c.id,c]));
+  nt.forEach(n=>{const c=byC.get(n.client_id);if(c)c.notes.push({id:n.id,text:n.text,date:(n.created_at||'').slice(0,10),tone:n.tone||'sun'})});
+  S.deals=dl.map(MAP.deals.from);S.tx=tx.map(MAP.tx.from);S.tasks=tk.map(MAP.tasks.from);S.events=ev.map(MAP.events.from);
+  S.settings={name:st[0].display_name||'there',goal:Number(st[0].monthly_income_goal)||0,spendLimit:Number(st[0].monthly_spending_limit)||0};
+  SNAP=toSnap(rowsNow());
+  await loadOnb();
+}
+function fatal(t,m){$('#app').innerHTML=`<div class="card" style="max-width:560px;margin:60px auto;text-align:center"><h2 class="disp text-xl font-semibold">${esc(t)}</h2><p class="hint mt-2">${esc(m||'')}</p></div>`}
+
 /* ================= boot ================= */
-load();chrome();render(true);
+let KEY='';try{KEY=localStorage.getItem('wz_key')||''}catch(_){}
+const km=(location.hash||'').match(/^#key=(.+)$/);
+if(km){KEY=decodeURIComponent(km[1]);try{localStorage.setItem('wz_key',KEY)}catch(_){}history.replaceState(null,'',location.pathname+'#overview')}
+load();chrome();
+if(!KEY)fatal('Private link needed','Open your dashboard link that ends with #key=YOUR-SECRET.');
+else if(!window.supabase||SUPABASE_ANON_KEY.startsWith('PASTE'))fatal('Setup needed','Add your Supabase anon key in index.html (SUPABASE_ANON_KEY).');
+else{
+  DB=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{'x-dashboard-key':KEY}}});
+  fatal('Loading your workspace…','');
+  loadAll().then(()=>{chrome();render(true)}).catch(e=>{DB=null;fatal('Could not load data',e.message||'Check your key link and Supabase setup.')});
+}
 document.fonts?.ready.then(moveInk);
 })();
 </script>
