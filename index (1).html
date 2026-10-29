@@ -594,6 +594,24 @@ button, input, select, textarea { max-width:100%; }
   .kpis { grid-template-columns:minmax(0,1fr); }
 }
 
+/* Fix Restaurant Applications header on mobile */
+@media (max-width: 480px) {
+  .card-h {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .card-h > div {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+
+  .card-h .chip {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
 </style>
 </head>
 <body>
