@@ -645,8 +645,9 @@ const fmtINR=n=>(n<0?'−':'')+'₹'+num(n);
 const trim=s=>s.includes('.')?s.replace(/\.?0+$/,''):s;
 const compact=n=>{const a=Math.abs(n),s=n<0?'−':'';if(a>=1e5)return s+'₹'+trim((a/1e5).toFixed(2))+'L';if(a>=1e3)return s+'₹'+trim((a/1e3).toFixed(1))+'k';return s+'₹'+Math.round(a)};
 const sum=(a,k)=>a.reduce((t,x)=>t+(+x[k]||0),0);
+
 // Backend integration contract. Keep API_BASE_URL empty until the server is deployed.
-const API_BASE_URL = 'master';
+const API_BASE_URL = '';
 async function apiRequest(path, options = {}) {
   if (!API_BASE_URL) throw new Error('Backend API is not configured. Set API_BASE_URL after deploying the API.');
   const response = await fetch(`${API_BASE_URL.replace(/\/$/, '')}${path}`, {
@@ -1474,7 +1475,7 @@ window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(VIEW
 
 /* ================= Supabase data layer ================= */
 const SUPABASE_URL='https://gzqbxtopgvsulhfvrjqk.supabase.co';
-const SUPABASE_ANON_KEY='PASTE_YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_ANON_KEY='sb_publishable_Sj7EQSne9Pb-SB-zyWiOsw_fSrwW75A';
 let DB=null,SNAP={},chain=Promise.resolve();
 const nz=v=>(v===''||v===undefined)?null:v;
 const MAP={
@@ -1566,4 +1567,4 @@ document.fonts?.ready.then(moveInk);
 })();
 </script>
 </body>
-</html>
+</html> 
